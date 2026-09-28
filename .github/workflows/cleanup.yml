@@ -60,7 +60,7 @@ jobs:
 
       - name: Drop TOdos App database object
         env:
-          GIT_REPO_FQN: ${{env.GIT_REPO_DB}}.${{env.GIT_+REPOSCHEMA}}.${{env.GIT_REPO_NAME}}
+          GIT_REPO_FQN: ${{env.GIT_REPO_DB}}.${{env.GIT_REPO_SCHEMA}}.${{env.GIT_REPO_NAME}}
         run: |
           snow git execute "@$GIT_REPO_FQN/branches/$GITHUB_REF_NAME/cleanup/cleanup_app.sql" \
             --variable "db_name='$TODO_APP_DB'" \
@@ -69,7 +69,7 @@ jobs:
       - name: Cleanup Git Repository
         env:
           GIT_REPO_FQN: ${{env.GIT_REPO_DB}}.${{env.GIT_REPO_SCHEMA}}.${{env.GIT_REPO_NAME}}
-        run: 
+        run: |
           snow git execute "@$GIT_REPO_FQN/branches/$GITHUB_REF_NAME/cleanup/cleanup_git_repo.sql" \
             --variable "github_api_integration='github_api_int'" \
             --variable "GIT_REPO_NAME='$GIT_REPO_FQN'"
