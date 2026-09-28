@@ -128,7 +128,7 @@ jobs:
             --variable "wh_name='$TODO_APP_WH'" \
             --variable "git_repo_name='$GIT_REPO_FQN'" \
             --variable "git_branch='$GITHUB_REF_NAME'" \
-            --database $GIT_REPO_DB 
+            --database $GIT_REPO_DB \
             --schema $GIT_REPO_SCHEMA 
 
       - name: Deploy TODOS Streamlit App
