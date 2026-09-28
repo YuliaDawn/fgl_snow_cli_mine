@@ -1,0 +1,75 @@
+name: Clean up
+on:
+  workflow_dispatch:
+
+env:
+  SNOWFLAKE_DEFAULT_CONNECTION_NAME: "workflow"
+  SNOWFLAKE_CONNECTIONS_WORKFLOW_ACCOUNT: ${{secrets.SNOWFLAKE_ACCOUNT}}
+  SNOWFLAKE_CONNECTIONS_WORKFLOW_USER: ${{secrets.SNOWFLAKE_USER}}
+  SNOWFLAKE_CONNECTIONS_WORKFLOW_PRIVATE_KEY_RAW: ${{secrets.PRIVATE_KEY_RAW}}
+  SNOWFLAKE_CONNECTIONS_WORKFLOW_PRIVATE_KEY_PASSPHRASE: ${{secrets.PRIVATE_KEY_PASSPHRASE}}
+
+  GIT_REPO_DB: MY_GIT_REPOS
+  GIT_REPO_SCHEMA: GITHUB
+  GIT_REPO_NAME: ${{github.event.repository.name}}
+  GITHUB_PAT_SECRET: ${{secrets.GH_PAT}}
+  GITHUB_REF_NAME: ${{ github.ref_name }}
+
+  TODO_APP_NAME: todos_app
+  TODO_APP_WH: TODO_APP_WH
+  TODO_APP_DB: TODO_APP_DB
+  TODO_APP_SCHEMA: APPS
+  TODO_DATA_SCHEMA: DATA
+
+
+jobs:
+  Deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # clone github repository's files into the virtual machine's working directory($GITHUB_WORKSPACE)
+      - uses: actions/checkout@v4
+        with:
+          # todo update to pick the right branch
+          ref: ${{env.GITHUB_REF_NAME}}
+
+      - name: List files in the workspace
+        run: |
+          chmod 777 ${{github.workspace}}/config/config.toml
+          ls -al ${{github.workspace}}
+      
+      - uses: Snowflake-Labs/snowflake-cli-action@v1.5
+        with:
+          cli-version: "latest"
+          default-config-file-path: "${{github.workspace}}/config/config.toml"
+
+      # Write private key
+      - name: Configure private key
+        run: |
+            printf "%s" "${{secrets.PRIVATE_KEY_RAW}}" > ${{github.workspace}}/config/snowflake_rsa_key
+            chmod 600 ${{github.workspace}}/config/snowflake_rsa_key 
+      
+      - name: List files in the config directory - private key
+        run: ls -al ${{github.workspace}}/config
+      
+      # check connection
+      - name: Check version and verify connection
+        run: |
+            snow --version 
+            snow connection test
+            echo "Using branch $GITHUB_REF_NAME"
+
+      - name: Drop TOdos App database object
+        env:
+          GIT_REPO_FQN: ${{env.GIT_REPO_DB}}.${{env.GIT_+REPOSCHEMA}}.${{env.GIT_REPO_NAME}}
+        run: |
+          snow git execute "@$GIT_REPO_FQN/branches/$GITHUB_REF_NAME/cleanup/cleanup_app.sql" \
+            --variable "db_name='$TODO_APP_DB'" \
+            --variable "git_repo_name='$GIT_REPO_FQN'"
+      
+      - name: Cleanup Git Repository
+        env:
+          GIT_REPO_FQN: ${{env.GIT_REPO_DB}}.${{env.GIT_REPO_SCHEMA}}.${{env.GIT_REPO_NAME}}
+        run: 
+          snow git execute "@$GIT_REPO_FQN/branches/$GITHUB_REF_NAME/cleanup/cleanup_git_repo.sql" \
+            --variable "github_api_integration='github_api_int'" \
+            --variable "GIT_REPO_NAME='$GIT_REPO_FQN'"
